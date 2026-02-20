@@ -1,0 +1,12 @@
+langgraph>=0.2.0
+pydantic>=2.7.0
+psycopg[binary]>=3.2.0
+pgvector>=0.2.5
+prefect>=2.0
+streamlit>=1.32.0
+graphviz>=0.20.0
+plotly>=5.22.0
+numpy>=1.26.0
+pandas>=2.2.0
+yfinance>=0.2.40
+typing-extensions>=4.10.0
