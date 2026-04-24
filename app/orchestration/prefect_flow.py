@@ -20,37 +20,19 @@ from .state import GraphState
 
 F = TypeVar("F", bound=Callable[..., object])
 
+class _NoOpLogger:
+    def info(self, message: str, *args: object) -> None:
+        del message, args
+
+
 try:
     from prefect import flow as _prefect_flow
-    from prefect import get_run_logger
+    from prefect import get_run_logger as _prefect_get_run_logger
     from prefect import task as _prefect_task
 except ImportError:
-
-    class _NoOpLogger:
-        def info(self, message: str, *args: object) -> None:
-            del message, args
-
-    def _apply_task(func: F) -> F:
-        return func
-
-    def _apply_flow(*_args: object, **_kwargs: object) -> Callable[[F], F]:
-        def decorator(func: F) -> F:
-            return func
-
-        return decorator
-
-    def get_run_logger() -> _NoOpLogger:
-        return _NoOpLogger()
-else:
-
-    def _apply_task(func: F) -> F:
-        return cast(F, _prefect_task(func))
-
-    def _apply_flow(*args: object, **kwargs: object) -> Callable[[F], F]:
-        def decorator(func: F) -> F:
-            return cast(F, _prefect_flow(*args, **kwargs)(func))
-
-        return decorator
+    _prefect_flow = None
+    _prefect_get_run_logger = None
+    _prefect_task = None
 
 
 class SupportsInfo(Protocol):
@@ -64,6 +46,30 @@ class SupportsLogState(Protocol):
 StateRunner = Callable[[GraphState], GraphState]
 
 
+def _apply_task(func: F) -> F:
+    if _prefect_task is None:
+        return func
+    return cast(F, _prefect_task(func))
+
+
+def _apply_flow(*, name: str | None = None) -> Callable[[F], F]:
+    if _prefect_flow is None:
+        return _identity_decorator
+
+    def prefect_decorator(func: F) -> F:
+        return cast(F, _prefect_flow(name=name)(func))
+
+    return prefect_decorator
+
+
+def _identity_decorator(func: F) -> F:
+    return func
+
+
+def _get_route_logger() -> SupportsInfo:
+    if _prefect_get_run_logger is None:
+        return _NoOpLogger()
+    return cast(SupportsInfo, _prefect_get_run_logger())
 @_apply_task
 def planner_task(state: GraphState) -> GraphState:
     return planner_node(state)
@@ -100,7 +106,7 @@ def _run_research_loop(
     route_logger: SupportsInfo | None = None,
     state_logger: SupportsLogState | None = None,
 ) -> GraphState:
-    logger = route_logger or get_run_logger()
+    logger = route_logger or _get_route_logger()
     state = GraphState(hypothesis=hypothesis, max_retries=max_retries)
 
     while True:
