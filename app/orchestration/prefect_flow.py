@@ -1,8 +1,34 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import os
+from typing import Protocol, TypeVar
 
-from prefect import flow, get_run_logger, task
+try:
+    from prefect import flow, get_run_logger, task
+except ImportError:
+    F = TypeVar("F", bound=Callable[..., object])
+
+    class _NoOpLogger:
+        def info(self, message: str, *args: object) -> None:
+            del message, args
+
+    def task(func: F | None = None, **_kwargs: object) -> F | Callable[[F], F]:
+        if func is None:
+            def decorator(inner: F) -> F:
+                return inner
+
+            return decorator
+        return func
+
+    def flow(*_args: object, **_kwargs: object) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            return func
+
+        return decorator
+
+    def get_run_logger() -> _NoOpLogger:
+        return _NoOpLogger()
 
 from ..monitoring.log_writer import DecisionLogger
 from .graph import (
@@ -19,46 +45,66 @@ from .graph import (
 from .state import GraphState
 
 
-@task  # type: ignore[untyped-decorator]
+class SupportsInfo(Protocol):
+    def info(self, message: str, *args: object) -> None: ...
+
+
+class SupportsLogState(Protocol):
+    def log_state(self, state: GraphState) -> None: ...
+
+
+StateRunner = Callable[[GraphState], GraphState]
+
+
+@task
 def planner_task(state: GraphState) -> GraphState:
     return planner_node(state)
 
 
-@task  # type: ignore[untyped-decorator]
+@task
 def executor_task(state: GraphState) -> GraphState:
     return executor_node(state)
 
 
-@task  # type: ignore[untyped-decorator]
+@task
 def critic_task(state: GraphState) -> GraphState:
     return critic_node(state)
 
 
-@task  # type: ignore[untyped-decorator]
+@task
 def risk_task(state: GraphState) -> GraphState:
     return risk_manager_node(state)
 
 
-@task  # type: ignore[untyped-decorator]
+@task
 def approval_task(state: GraphState) -> GraphState:
     return human_approval_node(state)
 
 
-@flow(name="Research Orchestration")  # type: ignore[untyped-decorator]
-def research_flow(hypothesis: str, max_retries: int = MAX_RETRIES) -> GraphState:
-    logger = get_run_logger()
+def _run_research_loop(
+    hypothesis: str,
+    max_retries: int = MAX_RETRIES,
+    planner_runner: StateRunner = planner_task,
+    executor_runner: StateRunner = executor_task,
+    critic_runner: StateRunner = critic_task,
+    risk_runner: StateRunner = risk_task,
+    approval_runner: StateRunner = approval_task,
+    route_logger: SupportsInfo | None = None,
+    state_logger: SupportsLogState | None = None,
+) -> GraphState:
+    logger = route_logger or get_run_logger()
     state = GraphState(hypothesis=hypothesis, max_retries=max_retries)
 
     while True:
-        state = planner_task(state)
+        state = planner_runner(state)
         if state.failure_reason:
             break
 
-        state = executor_task(state)
+        state = executor_runner(state)
         if state.failure_reason:
             break
 
-        state = critic_task(state)
+        state = critic_runner(state)
         if state.failure_reason:
             break
 
@@ -69,7 +115,7 @@ def research_flow(hypothesis: str, max_retries: int = MAX_RETRIES) -> GraphState
         if critic_route in {"fail", "paused"}:
             break
 
-        state = risk_task(state)
+        state = risk_runner(state)
         if state.failure_reason:
             break
 
@@ -78,7 +124,7 @@ def research_flow(hypothesis: str, max_retries: int = MAX_RETRIES) -> GraphState
         if risk_route in {"fail", "paused"}:
             break
 
-        state = approval_task(state)
+        state = approval_runner(state)
         if state.failure_reason:
             break
 
@@ -87,12 +133,18 @@ def research_flow(hypothesis: str, max_retries: int = MAX_RETRIES) -> GraphState
         if approval_route in {"done", "fail", "paused"}:
             break
 
-    DecisionLogger().log_state(state)
+    state_logger = state_logger or DecisionLogger()
+    state_logger.log_state(state)
 
     if state.failure_reason:
         raise RuntimeError(state.failure_reason)
 
     return state
+
+
+@flow(name="Research Orchestration")
+def research_flow(hypothesis: str, max_retries: int = MAX_RETRIES) -> GraphState:
+    return _run_research_loop(hypothesis=hypothesis, max_retries=max_retries)
 
 
 if __name__ == "__main__":

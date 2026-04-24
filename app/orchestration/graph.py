@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from langgraph.graph import END, StateGraph
-
 from ..monitoring.log_writer import DecisionLogger
 from ..validation.counterfactual import generate_counterfactuals
 from ..validation.metrics import build_consistency_report
@@ -176,7 +174,9 @@ def route_after_human(state: GraphState) -> Literal["done", "fail", "paused"]:
     return "paused"
 
 
-def build_graph() -> StateGraph:
+def build_graph() -> Any:
+    from langgraph.graph import END, StateGraph
+
     graph = StateGraph(GraphState)
 
     graph.add_node("planner", planner_node)

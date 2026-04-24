@@ -3,8 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
-
-import psycopg
+from typing import Any
 
 
 def _get_database_url() -> str:
@@ -18,7 +17,9 @@ def _get_database_url() -> str:
 
 
 @contextmanager
-def get_connection() -> Iterator[psycopg.Connection]:
+def get_connection() -> Iterator[Any]:
+    import psycopg
+
     conn = psycopg.connect(_get_database_url())
     try:
         yield conn

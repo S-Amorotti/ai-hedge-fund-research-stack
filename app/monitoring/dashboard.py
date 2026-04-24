@@ -24,10 +24,16 @@ APPROVAL_FLAG = os.getenv("APPROVAL_FLAG", "app/monitoring/approval.flag")
 st.set_page_config(page_title="AI Hedge Fund Monitor", layout="wide")
 st.title("AI Hedge Fund Monitoring")
 
-try:
-    st.autorefresh(interval=2000, key="live_refresh")
-except Exception:
-    pass
+
+def _autorefresh(interval: int, key: str) -> None:
+    autorefresh = getattr(st, "autorefresh", None)
+    if not callable(autorefresh):
+        return
+
+    try:
+        autorefresh(interval=interval, key=key)
+    except Exception:
+        pass
 
 
 def _build_flow_graph(active_node: str | None) -> Digraph:
@@ -125,6 +131,24 @@ def _write_approval(value: str) -> None:
         handle.write(value)
 
 
+def _show_approval_dialog(latest: dict[str, Any]) -> None:
+    @st.dialog("Review & Approve")
+    def approval_dialog() -> None:
+        st.write("The system is waiting for approval. Review the proposed code below.")
+        st.code(latest.get("code_snippet", ""), language="python")
+        if st.button("Approve"):
+            _write_approval("approve")
+            st.success("Approved. Resume the run.")
+        if st.button("Reject"):
+            _write_approval("reject")
+            st.warning("Rejected. The run will halt.")
+
+    approval_dialog()
+
+
+_autorefresh(interval=2000, key="live_refresh")
+
+
 logs: list[dict[str, Any]] = read_logs()
 latest = logs[-1] if logs else {}
 
@@ -174,15 +198,7 @@ with col3:
 
 awaiting_approval = bool(latest.get("awaiting_approval"))
 if awaiting_approval:
-    with st.dialog("Review & Approve"):
-        st.write("The system is waiting for approval. Review the proposed code below.")
-        st.code(latest.get("code_snippet", ""), language="python")
-        if st.button("Approve"):
-            _write_approval("approve")
-            st.success("Approved. Resume the run.")
-        if st.button("Reject"):
-            _write_approval("reject")
-            st.warning("Rejected. The run will halt.")
+    _show_approval_dialog(latest)
 
 st.subheader("Recent Decision Traces")
 for entry in reversed(logs[-20:]):

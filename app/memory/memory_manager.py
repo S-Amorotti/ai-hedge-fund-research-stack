@@ -4,7 +4,6 @@ import hashlib
 from typing import Any
 
 import numpy as np
-import psycopg
 
 from .db import get_connection
 
@@ -30,7 +29,13 @@ def embed_text(text: str, dim: int = 768) -> list[float]:
     return vec.astype(float).tolist()
 
 
+def _format_vector(values: list[float]) -> str:
+    return "[" + ",".join(f"{value:.12g}" for value in values) + "]"
+
+
 def store_trace(trace: dict[str, Any]) -> None:
+    from psycopg.types.json import Jsonb
+
     summary = summarize_trace(trace)
     embedding = embed_text(summary)
 
@@ -39,13 +44,13 @@ def store_trace(trace: dict[str, Any]) -> None:
             cur.execute(
                 """
                 INSERT INTO decision_traces (hypothesis, trace, summary, embedding, failure_reason)
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s::vector, %s)
                 """,
                 (
                     trace.get("hypothesis"),
-                    psycopg.types.json.Jsonb(trace),
+                    Jsonb(trace),
                     summary,
-                    embedding,
+                    _format_vector(embedding),
                     trace.get("failure_reason"),
                 ),
             )
@@ -61,10 +66,10 @@ def retrieve_similar(summary_query: str, limit: int = 5) -> list[dict[str, Any]]
                 """
                 SELECT id, created_at, hypothesis, trace, summary, failure_reason
                 FROM decision_traces
-                ORDER BY embedding <-> %s
+                ORDER BY embedding <-> %s::vector
                 LIMIT %s
                 """,
-                (embedding, limit),
+                (_format_vector(embedding), limit),
             )
             rows = cur.fetchall()
 
