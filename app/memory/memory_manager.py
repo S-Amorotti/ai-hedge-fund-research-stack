@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 import psycopg
@@ -9,7 +9,7 @@ import psycopg
 from .db import get_connection
 
 
-def summarize_trace(trace: Dict[str, Any]) -> str:
+def summarize_trace(trace: dict[str, Any]) -> str:
     """Summarize a trace deterministically before embedding."""
 
     keys = ", ".join(sorted(trace.keys()))
@@ -17,7 +17,7 @@ def summarize_trace(trace: Dict[str, Any]) -> str:
     return f"Trace summary with keys: {keys}. Failure: {failure}"
 
 
-def embed_text(text: str, dim: int = 768) -> List[float]:
+def embed_text(text: str, dim: int = 768) -> list[float]:
     """Deterministic embedding using hashing.
 
     This avoids external services while remaining reproducible and auditable.
@@ -30,7 +30,7 @@ def embed_text(text: str, dim: int = 768) -> List[float]:
     return vec.astype(float).tolist()
 
 
-def store_trace(trace: Dict[str, Any]) -> None:
+def store_trace(trace: dict[str, Any]) -> None:
     summary = summarize_trace(trace)
     embedding = embed_text(summary)
 
@@ -52,7 +52,7 @@ def store_trace(trace: Dict[str, Any]) -> None:
         conn.commit()
 
 
-def retrieve_similar(summary_query: str, limit: int = 5) -> List[Dict[str, Any]]:
+def retrieve_similar(summary_query: str, limit: int = 5) -> list[dict[str, Any]]:
     embedding = embed_text(summary_query)
 
     with get_connection() as conn:

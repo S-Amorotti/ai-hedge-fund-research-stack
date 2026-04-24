@@ -45,7 +45,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Run tests with coverage
-        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=60
+        run: pytest -m "not integration" --cov=app --cov-report=term-missing --cov-fail-under=60
         env:
           # DB calls are mocked in unit tests — no real database needed.
           DATABASE_URL: ""
@@ -85,6 +85,6 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_hedge_fund
 
       - name: Run integration tests
-        run: pytest tests/integration/ -q
+        run: pytest -m integration -q
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_hedge_fund

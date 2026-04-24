@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -21,11 +22,11 @@ class FactFinValidator:
     def __init__(self, config: FactFinConfig | None = None) -> None:
         self.config = config or FactFinConfig()
 
-    def perturb_data(self, df: pd.DataFrame, seed: int = 7) -> List[pd.DataFrame]:
+    def perturb_data(self, df: pd.DataFrame, seed: int = 7) -> list[pd.DataFrame]:
         """Generate counterfactual scenarios with Gaussian noise and earnings shifts."""
 
         rng = np.random.default_rng(seed)
-        scenarios: List[pd.DataFrame] = []
+        scenarios: list[pd.DataFrame] = []
         if df.empty:
             return scenarios
 
@@ -51,7 +52,7 @@ class FactFinValidator:
 
         return scenarios
 
-    def _extract_recommendation(self, result: Dict[str, Any]) -> np.ndarray:
+    def _extract_recommendation(self, result: dict[str, Any]) -> np.ndarray:
         if "prediction" in result:
             return np.atleast_1d(result["prediction"]).astype(float)
         if "signal" in result:
@@ -64,9 +65,9 @@ class FactFinValidator:
 
     def consistency_check(
         self,
-        executor: Callable[[pd.DataFrame], Dict[str, Any]],
+        executor: Callable[[pd.DataFrame], dict[str, Any]],
         df: pd.DataFrame,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run executor on perturbed scenarios and compute Prediction Consistency."""
 
         scenarios = self.perturb_data(df)
@@ -100,8 +101,8 @@ class FactFinValidator:
     def walk_forward_optimization(
         self,
         df: pd.DataFrame,
-        strategy_fn: Callable[[pd.DataFrame], pd.Series] | None = None,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        strategy_fn: Callable[[pd.DataFrame, pd.DataFrame], pd.Series] | None = None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Rolling window backtest: train on months 1-6, test on month 7, etc."""
 
         if df.empty or "close" not in df.columns:
@@ -120,7 +121,7 @@ class FactFinValidator:
 
         strategy_fn = strategy_fn or default_strategy
 
-        sharpe_rows: List[Dict[str, Any]] = []
+        sharpe_rows: list[dict[str, Any]] = []
         for i in range(6, len(months)):
             train_months = months[i - 6 : i]
             test_month = months[i]
@@ -132,7 +133,11 @@ class FactFinValidator:
             else:
                 sharpe = float(np.sqrt(252) * returns.mean() / returns.std())
             sharpe_rows.append(
-                {"train_window": f"{train_months[0]}-{train_months[-1]}", "test_month": str(test_month), "sharpe": sharpe}
+                {
+                    "train_window": f"{train_months[0]}-{train_months[-1]}",
+                    "test_month": str(test_month),
+                    "sharpe": sharpe,
+                }
             )
 
         if not sharpe_rows:

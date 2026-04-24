@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Any
+
 import numpy as np
 
 
@@ -17,18 +18,19 @@ def _shift_earnings_dates(dates: np.ndarray, shift: int) -> np.ndarray:
 
 
 def generate_counterfactuals(
-    dataset: Dict[str, Any],
-    config: CounterfactualConfig = CounterfactualConfig(),
+    dataset: dict[str, Any],
+    config: CounterfactualConfig | None = None,
     seed: int = 7,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Generate counterfactual datasets with deterministic perturbations."""
 
+    config = config or CounterfactualConfig()
     rng = np.random.default_rng(seed)
     prices = np.asarray(dataset.get("prices", []), dtype=float)
     earnings = np.asarray(dataset.get("earnings_dates", []), dtype=int)
     sentiment = np.asarray(dataset.get("sentiment", []), dtype=float)
 
-    counterfactuals: List[Dict[str, Any]] = []
+    counterfactuals: list[dict[str, Any]] = []
     for i in range(config.scenarios):
         noise = rng.normal(0.0, config.price_noise_std, size=prices.shape)
         price_cf = prices + noise

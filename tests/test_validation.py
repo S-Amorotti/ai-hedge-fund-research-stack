@@ -3,9 +3,8 @@ import pandas as pd
 import pytest
 
 from app.validation.counterfactual import CounterfactualConfig, generate_counterfactuals
-from app.validation.metrics import build_consistency_report, prediction_consistency
 from app.validation.factfin_validator import FactFinConfig, FactFinValidator
-
+from app.validation.metrics import build_consistency_report, prediction_consistency
 
 # ── generate_counterfactuals ──────────────────────────────────────────────────
 

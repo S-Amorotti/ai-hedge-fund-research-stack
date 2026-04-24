@@ -3,14 +3,13 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from .state import GraphState
-from .agents import PLANNER, EXECUTOR, CRITIC, COMPLIANCE, RISK_MANAGER
+from ..monitoring.log_writer import DecisionLogger
 from ..validation.counterfactual import generate_counterfactuals
 from ..validation.metrics import build_consistency_report
-from ..monitoring.log_writer import DecisionLogger
-
+from .agents import COMPLIANCE, CRITIC, EXECUTOR, PLANNER, RISK_MANAGER
+from .state import GraphState
 
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
 PC_THRESHOLD = float(os.getenv("PC_THRESHOLD", "0.7"))
@@ -64,9 +63,7 @@ def critic_node(state: GraphState) -> GraphState:
     # Counterfactual validation of predictions (stubbed inputs for now).
     baseline_predictions = state.executor_artifacts.get("predictions", [])
     counterfactuals = generate_counterfactuals({})
-    cf_predictions = []
-    for _ in counterfactuals:
-        cf_predictions.append([])
+    cf_predictions: list[list[Any]] = [[] for _ in counterfactuals]
 
     consistency_report = build_consistency_report(
         baseline=_to_array(baseline_predictions),
@@ -83,8 +80,7 @@ def critic_node(state: GraphState) -> GraphState:
     if consistency_report["prediction_consistency"] < PC_THRESHOLD:
         state.critic_report["veto"] = True
         state.critic_report["notes"] = (
-            state.critic_report.get("notes", "")
-            + f" PC below threshold {PC_THRESHOLD}."
+            state.critic_report.get("notes", "") + f" PC below threshold {PC_THRESHOLD}."
         )
 
     if state.critic_report.get("veto", False):
@@ -121,7 +117,7 @@ def human_approval_node(state: GraphState) -> GraphState:
     state.awaiting_approval = True
     approval_value = None
     if os.path.exists(APPROVAL_FLAG):
-        with open(APPROVAL_FLAG, "r", encoding="utf-8") as handle:
+        with open(APPROVAL_FLAG, encoding="utf-8") as handle:
             approval_value = handle.read().strip().lower()
 
     if approval_value == "approve":
@@ -142,7 +138,7 @@ def human_approval_node(state: GraphState) -> GraphState:
     return state
 
 
-def _to_array(values: Any):
+def _to_array(values: Any) -> Any:
     import numpy as np
 
     return np.asarray(values, dtype=float)

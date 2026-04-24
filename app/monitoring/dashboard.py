@@ -4,7 +4,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -53,7 +53,7 @@ def _build_flow_graph(active_node: str | None) -> Digraph:
     return graph
 
 
-def _render_market_chart(market_data: Dict[str, Any]) -> None:
+def _render_market_chart(market_data: dict[str, Any]) -> None:
     ohlcv = market_data.get("ohlcv", [])
     if not ohlcv:
         st.info("No market data available yet.")
@@ -125,14 +125,16 @@ def _write_approval(value: str) -> None:
         handle.write(value)
 
 
-logs: List[Dict[str, Any]] = read_logs()
+logs: list[dict[str, Any]] = read_logs()
 latest = logs[-1] if logs else {}
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Control")
-    strategy = st.text_input("Strategy Hypothesis", value="Hypothesis: earnings sentiment predicts short-term drift")
+    strategy = st.text_input(
+        "Strategy Hypothesis", value="Hypothesis: earnings sentiment predicts short-term drift"
+    )
     date_start = st.date_input("Start Date", value=datetime(2022, 1, 1))
     date_end = st.date_input("End Date", value=datetime(2022, 12, 31))
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Any
 
 import pandas as pd
 import yfinance as yf
@@ -17,7 +17,7 @@ class ToolSpec:
     description: str
 
 
-def fetch_market_data(params: Dict[str, Any]) -> Dict[str, Any]:
+def fetch_market_data(params: dict[str, Any]) -> dict[str, Any]:
     """Fetch market data from approved research sources (read-only).
 
     Uses yfinance for free, public OHLCV data. This does not connect to broker APIs.
@@ -57,7 +57,7 @@ def fetch_market_data(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def clean_data(raw: Dict[str, Any]) -> Dict[str, Any]:
+def clean_data(raw: dict[str, Any]) -> dict[str, Any]:
     """Clean and normalize raw research data.
 
     This function is deterministic and side-effect free.
@@ -70,7 +70,7 @@ def clean_data(raw: Dict[str, Any]) -> Dict[str, Any]:
     return {"cleaned": raw, "dataframe": df, "notes": "Basic normalization applied"}
 
 
-def run_analysis(cleaned: Dict[str, Any]) -> Dict[str, Any]:
+def run_analysis(cleaned: dict[str, Any]) -> dict[str, Any]:
     """Run research analysis on cleaned data.
 
     This function does not evaluate strategy quality or place trades.
@@ -91,7 +91,7 @@ def run_analysis(cleaned: Dict[str, Any]) -> Dict[str, Any]:
     df["rsi"] = rsi
 
     signals = []
-    for idx, row in df.iterrows():
+    for _idx, row in df.iterrows():
         if pd.isna(row["rsi"]):
             continue
         if row["rsi"] < 30:
@@ -115,10 +115,10 @@ def run_analysis(cleaned: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def check_restricted_symbols(symbols: List[str]) -> Dict[str, Any]:
+def check_restricted_symbols(symbols: list[str]) -> dict[str, Any]:
     """Compliance check for restricted symbols."""
 
-    restricted = set()
+    restricted: set[str] = set()
     violations = [s for s in symbols if s in restricted]
     return {
         "checked_symbols": symbols,
@@ -128,7 +128,7 @@ def check_restricted_symbols(symbols: List[str]) -> Dict[str, Any]:
     }
 
 
-def check_wash_sale_patterns(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+def check_wash_sale_patterns(trades: list[dict[str, Any]]) -> dict[str, Any]:
     """Compliance check for wash-sale patterns.
 
     Since this system is research-only, trades should be empty.
@@ -142,7 +142,7 @@ def check_wash_sale_patterns(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-ALL_TOOLS: Dict[str, ToolSpec] = {
+ALL_TOOLS: dict[str, ToolSpec] = {
     "fetch_market_data": ToolSpec(
         name="fetch_market_data",
         description="Read-only access to approved research data sources.",

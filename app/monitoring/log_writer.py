@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from ..orchestration.state import GraphState
 from ..memory.memory_manager import store_trace
+from ..orchestration.state import GraphState
 
 _DEFAULT_LOG_PATH = "app/monitoring/decisions.log"
 _DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -32,13 +32,18 @@ class DecisionLogger:
     """Append-only JSONL logger for auditability, with automatic size-based rotation."""
 
     def __init__(self, log_path: str | None = None) -> None:
-        self.log_path = log_path or os.getenv("LOG_PATH", _DEFAULT_LOG_PATH)
+        if log_path is not None:
+            self.log_path = log_path
+            return
+
+        env_log_path = os.getenv("LOG_PATH")
+        self.log_path = env_log_path if env_log_path is not None else _DEFAULT_LOG_PATH
 
     def log_state(self, state: GraphState | dict[str, Any]) -> None:
         if isinstance(state, dict):
             state = GraphState(**state)
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "hypothesis": state.hypothesis,
             "messages": state.messages,
             "market_data": state.market_data,
@@ -66,12 +71,17 @@ class DecisionLogger:
 
 
 def read_logs(log_path: str | None = None) -> list[dict[str, Any]]:
-    path = log_path or os.getenv("LOG_PATH", _DEFAULT_LOG_PATH)
+    if log_path is not None:
+        path = log_path
+    else:
+        env_log_path = os.getenv("LOG_PATH")
+        path = env_log_path if env_log_path is not None else _DEFAULT_LOG_PATH
+
     if not os.path.exists(path):
         return []
 
     entries: list[dict[str, Any]] = []
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line:

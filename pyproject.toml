@@ -1,10 +1,14 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ai-hedge-fund"
 version = "0.1.0"
 description = "Research-only AI hedge fund infrastructure (no trading)."
 requires-python = ">=3.11"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Sean Amorotti", email = "sean.amorotti@gmail.com" }]
 
 dependencies = [
@@ -52,7 +56,17 @@ warn_return_any = false
 
 [tool.pytest.ini_options]
 addopts = "-q --tb=short"
+markers = ["integration: tests that require Postgres/pgvector"]
 testpaths = ["tests"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["memory/schema.sql"]
 
 [dependency-groups]
 dev = [

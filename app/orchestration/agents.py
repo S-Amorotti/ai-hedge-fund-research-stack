@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Any
 
 from . import tools
 
@@ -11,7 +11,7 @@ from . import tools
 class AgentConfig:
     name: str
     system_prompt: str
-    allowed_tools: List[str]
+    allowed_tools: list[str]
     temperature: float
 
 
@@ -29,7 +29,7 @@ class BaseAgent:
 
 
 class PlannerAgent(BaseAgent):
-    def plan(self, hypothesis: str) -> List[str]:
+    def plan(self, hypothesis: str) -> list[str]:
         # Deterministic, non-data-access decomposition.
         return [
             f"Restate hypothesis: {hypothesis}",
@@ -40,9 +40,9 @@ class PlannerAgent(BaseAgent):
 
 
 class ExecutorAgent(BaseAgent):
-    def execute(self, plan: List[str]) -> Dict[str, Any]:
+    def execute(self, plan: list[str]) -> dict[str, Any]:
         # Executor generates executable Python code but does not run it.
-        artifacts: Dict[str, Any] = {"plan": plan}
+        artifacts: dict[str, Any] = {"plan": plan}
         code_snippet = "\n".join(
             [
                 "import pandas as pd",
@@ -86,7 +86,7 @@ class ExecutorAgent(BaseAgent):
 
 
 class CriticAgent(BaseAgent):
-    def evaluate(self, artifacts: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(self, artifacts: dict[str, Any]) -> dict[str, Any]:
         # Returns a structured JSON report and can veto.
         code_snippet = artifacts.get("code_snippet", "")
         look_ahead_risk = "low"
@@ -110,13 +110,17 @@ class CriticAgent(BaseAgent):
 
 
 class ComplianceOfficerAgent(BaseAgent):
-    def review(self, symbols: List[str], trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def review(self, symbols: list[str], trades: list[dict[str, Any]]) -> dict[str, Any]:
         self.validate_tool_access("check_restricted_symbols")
         symbol_report = tools.check_restricted_symbols(symbols)
         self.validate_tool_access("check_wash_sale_patterns")
         wash_report = tools.check_wash_sale_patterns(trades)
 
-        status = "pass" if symbol_report["status"] == "pass" and wash_report["status"] == "pass" else "fail"
+        status = (
+            "pass"
+            if symbol_report["status"] == "pass" and wash_report["status"] == "pass"
+            else "fail"
+        )
         return {
             "symbol_report": symbol_report,
             "wash_sale_report": wash_report,
@@ -125,7 +129,7 @@ class ComplianceOfficerAgent(BaseAgent):
 
 
 class RiskManagerAgent(BaseAgent):
-    def evaluate(self, artifacts: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(self, artifacts: dict[str, Any]) -> dict[str, Any]:
         risk_metrics = artifacts.get("risk_metrics", {})
         max_drawdown = float(risk_metrics.get("max_drawdown", 0.0))
         exposure = float(risk_metrics.get("exposure", 0.0))
@@ -180,7 +184,9 @@ CRITIC = CriticAgent(
 COMPLIANCE = ComplianceOfficerAgent(
     AgentConfig(
         name="ComplianceOfficer",
-        system_prompt="You check restricted symbols and wash-sale patterns. No modifications allowed.",
+        system_prompt=(
+            "You check restricted symbols and wash-sale patterns. No modifications allowed."
+        ),
         allowed_tools=["check_restricted_symbols", "check_wash_sale_patterns"],
         temperature=0.1,
     )

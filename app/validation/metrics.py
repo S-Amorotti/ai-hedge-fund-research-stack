@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any
+
 import numpy as np
 
 
 def prediction_consistency(
-    baseline: np.ndarray, counterfactual_predictions: List[np.ndarray]
+    baseline: np.ndarray, counterfactual_predictions: list[np.ndarray]
 ) -> float:
     """Compute Prediction Consistency (PC) in [0, 1].
 
@@ -29,7 +30,7 @@ def prediction_consistency(
 
 
 def build_consistency_report(
-    baseline: np.ndarray, counterfactual_predictions: List[np.ndarray]
-) -> Dict[str, Any]:
+    baseline: np.ndarray, counterfactual_predictions: list[np.ndarray]
+) -> dict[str, Any]:
     pc = prediction_consistency(baseline, counterfactual_predictions)
     return {"prediction_consistency": pc}
