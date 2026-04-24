@@ -20,6 +20,7 @@ from .state import GraphState
 
 F = TypeVar("F", bound=Callable[..., object])
 
+
 class _NoOpLogger:
     def info(self, message: str, *args: object) -> None:
         del message, args
@@ -70,6 +71,8 @@ def _get_route_logger() -> SupportsInfo:
     if _prefect_get_run_logger is None:
         return _NoOpLogger()
     return cast(SupportsInfo, _prefect_get_run_logger())
+
+
 @_apply_task
 def planner_task(state: GraphState) -> GraphState:
     return planner_node(state)
