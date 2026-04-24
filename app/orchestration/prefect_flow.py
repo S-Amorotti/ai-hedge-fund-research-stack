@@ -20,6 +20,10 @@ from .state import GraphState
 
 F = TypeVar("F", bound=Callable[..., object])
 
+_prefect_flow: object | None = None
+_prefect_get_run_logger: object | None = None
+_prefect_task: object | None = None
+
 
 class _NoOpLogger:
     def info(self, message: str, *args: object) -> None:
@@ -27,13 +31,15 @@ class _NoOpLogger:
 
 
 try:
-    from prefect import flow as _prefect_flow
-    from prefect import get_run_logger as _prefect_get_run_logger
-    from prefect import task as _prefect_task
+    from prefect import flow as _prefect_flow_import
+    from prefect import get_run_logger as _prefect_get_run_logger_import
+    from prefect import task as _prefect_task_import
 except ImportError:
-    _prefect_flow = None
-    _prefect_get_run_logger = None
-    _prefect_task = None
+    pass
+else:
+    _prefect_flow = _prefect_flow_import
+    _prefect_get_run_logger = _prefect_get_run_logger_import
+    _prefect_task = _prefect_task_import
 
 
 class SupportsInfo(Protocol):
@@ -50,7 +56,8 @@ StateRunner = Callable[[GraphState], GraphState]
 def _apply_task(func: F) -> F:
     if _prefect_task is None:
         return func
-    return cast(F, _prefect_task(func))
+    prefect_task = cast(Callable[[F], object], _prefect_task)
+    return cast(F, prefect_task(func))
 
 
 def _apply_flow(*, name: str | None = None) -> Callable[[F], F]:
@@ -58,7 +65,8 @@ def _apply_flow(*, name: str | None = None) -> Callable[[F], F]:
         return _identity_decorator
 
     def prefect_decorator(func: F) -> F:
-        return cast(F, _prefect_flow(name=name)(func))
+        prefect_flow = cast(Callable[..., Callable[[F], object]], _prefect_flow)
+        return cast(F, prefect_flow(name=name)(func))
 
     return prefect_decorator
 
@@ -70,7 +78,8 @@ def _identity_decorator(func: F) -> F:
 def _get_route_logger() -> SupportsInfo:
     if _prefect_get_run_logger is None:
         return _NoOpLogger()
-    return cast(SupportsInfo, _prefect_get_run_logger())
+    prefect_get_run_logger = cast(Callable[[], object], _prefect_get_run_logger)
+    return cast(SupportsInfo, prefect_get_run_logger())
 
 
 @_apply_task
