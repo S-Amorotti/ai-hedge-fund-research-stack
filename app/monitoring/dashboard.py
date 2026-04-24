@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -131,8 +132,13 @@ def _write_approval(value: str) -> None:
         handle.write(value)
 
 
+DialogFn = TypeVar("DialogFn", bound=Callable[[], None])
+
+
 def _show_approval_dialog(latest: dict[str, Any]) -> None:
-    @st.dialog("Review & Approve")
+    dialog = cast(Callable[[DialogFn], DialogFn], st.dialog("Review & Approve"))
+
+    @dialog
     def approval_dialog() -> None:
         st.write("The system is waiting for approval. Review the proposed code below.")
         st.code(latest.get("code_snippet", ""), language="python")

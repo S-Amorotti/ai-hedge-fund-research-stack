@@ -1,34 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import os
-from typing import Protocol, TypeVar
-
-try:
-    from prefect import flow, get_run_logger, task
-except ImportError:
-    F = TypeVar("F", bound=Callable[..., object])
-
-    class _NoOpLogger:
-        def info(self, message: str, *args: object) -> None:
-            del message, args
-
-    def task(func: F | None = None, **_kwargs: object) -> F | Callable[[F], F]:
-        if func is None:
-            def decorator(inner: F) -> F:
-                return inner
-
-            return decorator
-        return func
-
-    def flow(*_args: object, **_kwargs: object) -> Callable[[F], F]:
-        def decorator(func: F) -> F:
-            return func
-
-        return decorator
-
-    def get_run_logger() -> _NoOpLogger:
-        return _NoOpLogger()
+from collections.abc import Callable
+from typing import Protocol, TypeVar, cast
 
 from ..monitoring.log_writer import DecisionLogger
 from .graph import (
@@ -44,6 +18,40 @@ from .graph import (
 )
 from .state import GraphState
 
+F = TypeVar("F", bound=Callable[..., object])
+
+try:
+    from prefect import flow as _prefect_flow
+    from prefect import get_run_logger
+    from prefect import task as _prefect_task
+except ImportError:
+
+    class _NoOpLogger:
+        def info(self, message: str, *args: object) -> None:
+            del message, args
+
+    def _apply_task(func: F) -> F:
+        return func
+
+    def _apply_flow(*_args: object, **_kwargs: object) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            return func
+
+        return decorator
+
+    def get_run_logger() -> _NoOpLogger:
+        return _NoOpLogger()
+else:
+
+    def _apply_task(func: F) -> F:
+        return cast(F, _prefect_task(func))
+
+    def _apply_flow(*args: object, **kwargs: object) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            return cast(F, _prefect_flow(*args, **kwargs)(func))
+
+        return decorator
+
 
 class SupportsInfo(Protocol):
     def info(self, message: str, *args: object) -> None: ...
@@ -56,27 +64,27 @@ class SupportsLogState(Protocol):
 StateRunner = Callable[[GraphState], GraphState]
 
 
-@task
+@_apply_task
 def planner_task(state: GraphState) -> GraphState:
     return planner_node(state)
 
 
-@task
+@_apply_task
 def executor_task(state: GraphState) -> GraphState:
     return executor_node(state)
 
 
-@task
+@_apply_task
 def critic_task(state: GraphState) -> GraphState:
     return critic_node(state)
 
 
-@task
+@_apply_task
 def risk_task(state: GraphState) -> GraphState:
     return risk_manager_node(state)
 
 
-@task
+@_apply_task
 def approval_task(state: GraphState) -> GraphState:
     return human_approval_node(state)
 
@@ -142,7 +150,7 @@ def _run_research_loop(
     return state
 
 
-@flow(name="Research Orchestration")
+@_apply_flow(name="Research Orchestration")
 def research_flow(hypothesis: str, max_retries: int = MAX_RETRIES) -> GraphState:
     return _run_research_loop(hypothesis=hypothesis, max_retries=max_retries)
 

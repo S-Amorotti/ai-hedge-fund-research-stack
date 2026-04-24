@@ -1,11 +1,17 @@
+import os
 import uuid
 
 import pytest
 
+pytest.importorskip("psycopg")
+
 from app.memory.db import get_connection
 from app.memory.memory_manager import retrieve_similar, store_trace
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(not os.getenv("DATABASE_URL"), reason="DATABASE_URL is required"),
+]
 
 
 def _trace(hypothesis: str) -> dict[str, object]:

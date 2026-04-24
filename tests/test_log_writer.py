@@ -53,6 +53,18 @@ def test_log_state_accepts_dict(tmp_path):
     assert entries[0]["hypothesis"] == "dict input"
 
 
+def test_log_state_uses_env_log_path(tmp_path, monkeypatch):
+    log_path = tmp_path / "env.log"
+    monkeypatch.setenv("LOG_PATH", str(log_path))
+    logger = DecisionLogger()
+
+    with patch("app.monitoring.log_writer.store_trace"):
+        logger.log_state({"hypothesis": "from env"})
+
+    entries = read_logs(str(log_path))
+    assert entries[0]["hypothesis"] == "from env"
+
+
 def test_log_state_appends(tmp_path):
     log_path = str(tmp_path / "decisions.log")
     logger = DecisionLogger(log_path=log_path)
@@ -101,3 +113,11 @@ def test_rotation_shifts_existing_backups(tmp_path, monkeypatch):
 
 def test_rotation_no_op_if_file_missing(tmp_path):
     _rotate_if_needed(str(tmp_path / "nonexistent.log"))
+
+
+def test_read_logs_uses_env_log_path(tmp_path, monkeypatch):
+    log_path = tmp_path / "env.log"
+    log_path.write_text('{"hypothesis": "env"}\n')
+    monkeypatch.setenv("LOG_PATH", str(log_path))
+
+    assert read_logs() == [{"hypothesis": "env"}]
