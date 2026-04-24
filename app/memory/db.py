@@ -7,12 +7,19 @@ from typing import Iterator
 import psycopg
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/ai_hedge_fund")
+def _get_database_url() -> str:
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError(
+            "DATABASE_URL environment variable is required. "
+            "Copy .env.example to .env and fill in your connection string."
+        )
+    return url
 
 
 @contextmanager
 def get_connection() -> Iterator[psycopg.Connection]:
-    conn = psycopg.connect(DATABASE_URL)
+    conn = psycopg.connect(_get_database_url())
     try:
         yield conn
     finally:

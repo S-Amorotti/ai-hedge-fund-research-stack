@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Research-only AI hedge fund infrastructure (no trading)."
 requires-python = ">=3.11"
 readme = "README.md"
-license = { text = "Proprietary" }
-authors = [{ name = "AI Hedge Fund" }]
+license = { text = "MIT" }
+authors = [{ name = "Sean Amorotti", email = "sean.amorotti@gmail.com" }]
 
 dependencies = [
   "langgraph>=0.2.0",
@@ -25,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=7.4",
+  "pytest-cov>=4.0",
   "ruff>=0.4",
   "mypy>=1.8",
   "black>=24.0",
@@ -50,4 +51,11 @@ disallow_any_generics = false
 warn_return_any = false
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q --tb=short"
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+]

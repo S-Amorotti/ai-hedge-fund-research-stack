@@ -179,69 +179,72 @@ The counterfactual engine produces 50 datasets per run and re-evaluates predicti
 
 **Docker Compose**
 - File: `infra/docker-compose.yml`.
-- Exposes Postgres on port 5432.
+- Exposes Postgres on host port 5433 (container port 5432).
 
 ## Environment Variables
 
-- `DATABASE_URL`: PostgreSQL connection string.
-- `LOG_PATH`: Optional path for JSONL logs (default `app/monitoring/decisions.log`).
-- `MAX_RETRIES`: Max executor retries after critic veto (default 2).
-- `PC_THRESHOLD`: Minimum Prediction Consistency threshold (default 0.7).
-- `PAUSE_FLAG`: Path for pause flag file (default `app/monitoring/pause.flag`).
+Copy `.env.example` to `.env` and fill in your values before running.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string (e.g. `postgresql://user:pass@localhost:5433/ai_hedge_fund`) |
+| `POSTGRES_PASSWORD` | Yes (Docker) | — | Password for the Postgres container |
+| `POSTGRES_USER` | No | `postgres` | Username for the Postgres container |
+| `POSTGRES_DB` | No | `ai_hedge_fund` | Database name for the Postgres container |
+| `POSTGRES_HOST_PORT` | No | `5433` | Host port that Docker maps Postgres to |
+| `LOG_PATH` | No | `app/monitoring/decisions.log` | Path for JSONL decision logs |
+| `MAX_LOG_BYTES` | No | `10485760` (10 MB) | Max log file size before rotation |
+| `LOG_BACKUP_COUNT` | No | `5` | Number of rotated log backups to keep |
+| `MAX_RETRIES` | No | `2` | Max executor retries after critic veto |
+| `PC_THRESHOLD` | No | `0.7` | Minimum Prediction Consistency threshold |
+| `PAUSE_FLAG` | No | `app/monitoring/pause.flag` | Path for kill-switch pause flag file |
+| `APPROVAL_FLAG` | No | `app/monitoring/approval.flag` | Path for human approval flag file |
+| `HYPOTHESIS` | No | see prefect_flow.py | Default hypothesis for the Prefect flow |
 
 ## Quickstart
 
-1. Start Postgres + pgvector (host port 5433):
+1. Copy the environment template and fill in your values:
    ```bash
-   cd ai-hedge-fund
-   docker compose -f infra/docker-compose.yml up
+   cp .env.example .env
+   # edit .env — at minimum set POSTGRES_PASSWORD and DATABASE_URL
    ```
 
-2. Initialize the schema (note the port):
+2. Start Postgres + pgvector (host port 5433):
    ```bash
-   export DATABASE_URL=postgresql://postgres:postgres@localhost:5433/ai_hedge_fund
+   docker compose -f infra/docker-compose.yml up -d
+   ```
+
+3. Initialize the schema:
+   ```bash
    psql "$DATABASE_URL" -f app/memory/schema.sql
    ```
 
-3. Install dependencies:
+4. Install dependencies (using `uv` — recommended):
    ```bash
-   pip install -r requirements.txt
+   uv pip install -e ".[dev]"
+   ```
+   Or with plain pip:
+   ```bash
+   pip install -e ".[dev]"
    ```
 
-4. Run the dashboard:
-   ```bash
-   streamlit run app/monitoring/dashboard.py
-   ```
-
-3. Install dependencies with `uv`:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-4. Launch the dashboard:
+5. Run the dashboard:
    ```bash
    uv run streamlit run app/monitoring/dashboard.py
    ```
 
-5. (Optional) Start Prefect server + UI:
-   ```bash
-   PREFECT_SERVER_ANALYTICS_ENABLED=false uv run prefect server start
-   ```
-   If the CLI does not connect to the server, set:
-   ```bash
-   uv run prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
-   ```
-   To opt out of client analytics, set:
-   ```bash
-   DO_NOT_TRACK=1
-   ```
-
-6. Run a research flow (example):
+6. Run a research flow directly:
    ```bash
    uv run python -c "from app.orchestration.graph import run_graph; run_graph('Hypothesis: earnings sentiment predicts short-term drift')"
    ```
 
-7. Run the Prefect-orchestrated flow (with visual monitoring):
+7. (Optional) Start Prefect server + UI for visual monitoring:
+   ```bash
+   PREFECT_SERVER_ANALYTICS_ENABLED=false uv run prefect server start
+   # if the CLI does not connect, set the API URL:
+   uv run prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+   ```
+   Then run the Prefect-orchestrated flow:
    ```bash
    uv run python -m app.orchestration.prefect_flow
    ```
